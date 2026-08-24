@@ -17,6 +17,7 @@ Canlı GitHub Pages bağlantısı: https://shtseymen-eng.github.io/poliport.nakl
 - Çekicide FL/AT uygunluğu; kılçık dorse, tanker dorse ve ISO tank için ayrı kayıt/evrak kuralları
 - Zorunlu evrak tamamlanmadan Pregate gönderimini engelleyen taslak ve geçmiş tarih kontrolü
 - Tanker T9 belgesi için tank kodu veya TSE izinli UN numarası eşleştirmesi
+- Sürücüde zorunlu ehliyet/yüksekte çalışabilir raporu, SRC-5 ile tehlikeli ürün ve SRC-5 + ISOPA ile MDI/TDI yetkisi
 - Çekici, dorse/tanker, ISO tank, 40 ayak konteyner, kamyon ve sürücü kaydı
 - Dosya ve son geçerlilik tarihi bulunan evrak alanları
 - Pregate onay, red ve geri gönderme akışı
