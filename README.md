@@ -14,6 +14,9 @@ Canlı GitHub Pages bağlantısı: https://shtseymen-eng.github.io/poliport.nakl
 - Poliport Ürün & Taşıma Yönetimi rehberinin portal içindeki bütünleşik görünümü
 - Seymen Nakliyeci Portalı makro örneğiyle uyumlu lacivert sol menü, başlık şeritleri ve araç kayıt düzeni
 - Evrak dosyası ve son geçerlilik tarihine göre Geçerli / Yaklaşıyor / Geçti / Eksik renk kontrolü
+- Çekicide FL/AT uygunluğu; kılçık dorse, tanker dorse ve ISO tank için ayrı kayıt/evrak kuralları
+- Zorunlu evrak tamamlanmadan Pregate gönderimini engelleyen taslak ve geçmiş tarih kontrolü
+- Tanker T9 belgesi için tank kodu veya TSE izinli UN numarası eşleştirmesi
 - Çekici, dorse/tanker, ISO tank, 40 ayak konteyner, kamyon ve sürücü kaydı
 - Dosya ve son geçerlilik tarihi bulunan evrak alanları
 - Pregate onay, red ve geri gönderme akışı
