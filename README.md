@@ -22,6 +22,8 @@ Canlı GitHub Pages bağlantısı: https://shtseymen-eng.github.io/poliport.nakl
 - Çekici, dorse/tanker, ISO tank, 40 ayak konteyner, kamyon ve sürücü kaydı
 - Dosya ve son geçerlilik tarihi bulunan evrak alanları
 - Pregate onay, red ve geri gönderme akışı
+- Pregate Evrak Kontrolünde her plaka için tek satır ve plaka altında açılan evrak listesi
+- Plaka bazında eksik, süresi geçmiş, bekleyen ve reddedilen evrak özeti
 - Araç tipine göre onaylı havuz ve otomatik red listesi
 - Ürün / tank kodu uyumuna göre sevkiyat talebi oluşturma
 - Araç-evrak ve operasyon-kantar raporu dışa aktarma

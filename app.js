@@ -164,6 +164,7 @@ const ui = {
   draftFiles: {},
   vehicleDraft: null,
   selectedDocKey: "",
+  expandedVehicleId: "",
   docFilter: { carrier: "all", status: "all", type: "all" },
   requestDraft: { requestNo: "", requestType: "tanker", product1: "Metanol", second: false, product2: "Aseton", matches: {} },
 };
@@ -500,13 +501,60 @@ function allDocuments() {
   return store.vehicles.flatMap((vehicle) => vehicle.documents.map((doc, index) => ({ vehicle, doc, index, key: `${vehicle.id}:${index}` })));
 }
 
-function pregateCounts() {
-  const docs = allDocuments();
-  return { total: docs.length, pending: docs.filter((item) => item.doc.status === "pending" || item.doc.status === "returned").length, approved: docs.filter((item) => item.doc.status === "approved").length, rejected: docs.filter((item) => item.doc.status === "rejected").length };
+function vehicleReviewDocuments(vehicle) {
+  const subtype = vehicle.subtype || (vehicle.type === "trailer" ? "tanker" : "");
+  const rules = documentRules(vehicle.type, subtype);
+  const ruleNames = new Set(rules.map((rule) => rule.name));
+  const expected = rules.map((rule) => {
+    const index = vehicle.documents.findIndex((doc) => doc.type === rule.name);
+    return { vehicle, rule, doc: index >= 0 ? vehicle.documents[index] : { type: rule.name, fileName: "", expiry: "", status: "pending", note: "" }, index, key: index >= 0 ? `${vehicle.id}:${index}` : "" };
+  });
+  const extras = vehicle.documents.map((doc, index) => ({ vehicle, doc, index, key: `${vehicle.id}:${index}`, rule: { name: doc.type, required: false, scope: "Ek belge" } })).filter((item) => !ruleNames.has(item.doc.type));
+  return [...expected, ...extras];
 }
 
-function filteredDocuments() {
-  return allDocuments().filter((item) => (ui.docFilter.carrier === "all" || item.vehicle.company === ui.docFilter.carrier) && (ui.docFilter.status === "all" || item.doc.status === ui.docFilter.status) && (ui.docFilter.type === "all" || item.doc.type === ui.docFilter.type));
+function vehicleDocumentIssueCount(vehicle) {
+  const rows = vehicleReviewDocuments(vehicle);
+  const rules = rows.map((row) => row.rule);
+  const issues = new Set();
+  rules.filter((rule) => rule.required).forEach((rule) => {
+    const row = rows.find((item) => item.rule.name === rule.name);
+    if (!documentIsComplete(row?.doc)) issues.add(rule.name);
+  });
+  const groups = [...new Set(rules.map((rule) => rule.requiredGroup).filter(Boolean))];
+  groups.forEach((group) => {
+    const groupRows = rows.filter((row) => row.rule.requiredGroup === group);
+    if (!groupRows.some((row) => documentIsComplete(row.doc))) issues.add(`group:${group}`);
+  });
+  rows.filter((row) => !row.rule.required && !row.rule.requiredGroup && (row.doc.fileName || row.doc.expiry) && !documentIsComplete(row.doc)).forEach((row) => issues.add(row.doc.type));
+  return issues.size;
+}
+
+function vehiclePregateSummary(vehicle) {
+  const submitted = vehicle.documents.filter((doc) => doc.fileName || doc.expiry);
+  const missing = vehicleDocumentIssueCount(vehicle);
+  const pending = submitted.filter((doc) => doc.status === "pending" || doc.status === "returned").length;
+  const rejected = submitted.filter((doc) => doc.status === "rejected").length;
+  const approved = submitted.filter((doc) => doc.status === "approved").length;
+  const status = rejected ? "rejected" : missing ? "missing" : pending ? "pending" : submitted.length && approved === submitted.length ? "approved" : "pending";
+  return { submitted: submitted.length, missing, pending, rejected, approved, status };
+}
+
+function pregateCounts() {
+  const docs = allDocuments();
+  return { records: store.vehicles.length, total: docs.length, missing: store.vehicles.reduce((sum, vehicle) => sum + vehicleDocumentIssueCount(vehicle), 0), pending: docs.filter((item) => item.doc.status === "pending" || item.doc.status === "returned").length, approved: docs.filter((item) => item.doc.status === "approved").length, rejected: docs.filter((item) => item.doc.status === "rejected").length };
+}
+
+function filteredPregateVehicles() {
+  return store.vehicles.filter((vehicle) => {
+    const summary = vehiclePregateSummary(vehicle);
+    const statusMatches = ui.docFilter.status === "all"
+      || (ui.docFilter.status === "missing" && summary.missing > 0)
+      || (ui.docFilter.status === "returned" && vehicle.documents.some((doc) => doc.status === "returned"))
+      || (ui.docFilter.status === "rejected" && summary.rejected > 0)
+      || (["pending", "approved"].includes(ui.docFilter.status) && summary.status === ui.docFilter.status);
+    return (ui.docFilter.carrier === "all" || vehicle.company === ui.docFilter.carrier) && statusMatches && (ui.docFilter.type === "all" || vehicleReviewDocuments(vehicle).some((item) => item.doc.type === ui.docFilter.type));
+  }).sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
 }
 
 function pregateNav() {
@@ -517,17 +565,38 @@ function pregateNav() {
 
 function renderPregateShell() {
   const counts = pregateCounts();
-  return `<div class="shell pregate-shell"><aside class="side"><div class="side-brand gulls"><div class="g-mark">G</div><b>GullsEye</b></div><div class="nav-title">ÖN KAPI</div>${pregateNav()}<div class="side-summary"><h3>Evrak Kontrol Özeti</h3><div class="summary-line"><span>Toplam Evrak</span><b>${counts.total}</b></div><div class="summary-line"><span>Onay Bekleyen</span><b class="orange">${counts.pending}</b></div><div class="summary-line"><span>Onaylanan</span><b class="green">${counts.approved}</b></div><div class="summary-line"><span>Reddedilen</span><b class="red">${counts.rejected}</b></div></div></aside><main class="main"><header class="top"><div class="top-left"><div class="g-mark small">G</div><span class="top-title">sseymen - LUNA DANIŞMANLIK</span></div><div class="top-right"><span class="pilot">GULLSEYE PİLOT</span><button class="btn btn-light btn-sm" data-action="back-gateway">Rol Seçimi</button><button class="btn btn-dark btn-sm" data-action="logout">Çıkış</button></div></header>${renderPregatePage()}</main></div>`;
+  return `<div class="shell pregate-shell"><aside class="side"><div class="side-brand gulls"><div class="g-mark">G</div><b>GullsEye</b></div><div class="nav-title">ÖN KAPI</div>${pregateNav()}<div class="side-summary"><h3>Evrak Kontrol Özeti</h3><div class="summary-line"><span>Plaka / Kayıt</span><b>${counts.records}</b></div><div class="summary-line"><span>Eksik / Geçersiz</span><b class="red">${counts.missing}</b></div><div class="summary-line"><span>Onay Bekleyen</span><b class="orange">${counts.pending}</b></div><div class="summary-line"><span>Onaylanan</span><b class="green">${counts.approved}</b></div><div class="summary-line"><span>Reddedilen</span><b class="red">${counts.rejected}</b></div></div></aside><main class="main"><header class="top"><div class="top-left"><div class="g-mark small">G</div><span class="top-title">sseymen - LUNA DANIŞMANLIK</span></div><div class="top-right"><span class="pilot">GULLSEYE PİLOT</span><button class="btn btn-light btn-sm" data-action="back-gateway">Rol Seçimi</button><button class="btn btn-dark btn-sm" data-action="logout">Çıkış</button></div></header>${renderPregatePage()}</main></div>`;
+}
+
+function renderExpandedVehicleDocuments(vehicle) {
+  const rows = vehicleReviewDocuments(vehicle);
+  const groups = new Map();
+  rows.filter((row) => row.rule.requiredGroup).forEach((row) => {
+    if (!groups.has(row.rule.requiredGroup)) groups.set(row.rule.requiredGroup, rows.filter((item) => item.rule.requiredGroup === row.rule.requiredGroup).some((item) => documentIsComplete(item.doc)));
+  });
+  return `<div class="expanded-documents"><div class="expanded-documents-head"><div><b>${esc(vehicle.plate)} evrakları</b><small>${esc(VEHICLE_TYPES[vehicle.type].label)} · ${esc(vehicle.company)}</small></div><span>${rows.length} evrak kalemi</span></div><div class="table-wrap nested-table-wrap"><table class="table nested-doc-table"><thead><tr><th>Evrak</th><th>Kapsam</th><th>Dosya</th><th>Son Geçerlilik</th><th>Geçerlilik</th><th>Pregate</th><th>İşlem</th></tr></thead><tbody>${rows.map((item) => {
+    const hasDocument = Boolean(item.key && (item.doc.fileName || item.doc.expiry));
+    const groupSatisfied = item.rule.requiredGroup ? groups.get(item.rule.requiredGroup) : false;
+    const missingRequired = !documentIsComplete(item.doc) && (item.rule.required || (item.rule.requiredGroup && !groupSatisfied));
+    const validity = hasDocument ? validityBadge(item.doc) : missingRequired ? `<span class="validity-badge missing">EKSİK</span>` : `<span class="validity-badge optional">${item.rule.requiredGroup ? "ALTERNATİF" : "İSTEĞE BAĞLI"}</span>`;
+    const pregate = hasDocument ? statusPill(item.doc.status) : missingRequired ? `<span class="pill missing">Eksik belge</span>` : `<span class="pill info">Kayıt yok</span>`;
+    return `<tr class="${item.key === ui.selectedDocKey ? "selected-row" : ""} ${missingRequired ? "nested-missing-row" : ""}"><td><b>${esc(item.doc.type)}</b></td><td>${esc(item.rule.required ? "Zorunlu" : item.rule.requiredGroup ? "Alternatif zorunlu" : item.rule.scope)}</td><td>${esc(item.doc.fileName || "Dosya yüklenmedi")}</td><td>${esc(item.doc.expiry || "-")}</td><td>${validity}</td><td>${pregate}</td><td>${item.key ? `<button class="btn btn-primary btn-sm" data-action="select-doc" data-key="${item.key}">Görüntüle</button>` : `<button class="btn btn-light btn-sm" disabled>Dosya Yok</button>`}</td></tr>`;
+  }).join("")}</tbody></table></div></div>`;
 }
 
 function renderPregatePage() {
   if (ui.page !== "docs") return `<section class="page"><div class="pregate-titlebar">${esc(ui.page)}</div><div class="empty">Bu GullsEye modülü mevcut sistemde yer almaya devam eder. Yeni çalışma kapsamında Evrak Kontrol ekranı ayrıntılı olarak tasarlanmıştır.</div></section>`;
-  const docs = filteredDocuments();
-  if (!ui.selectedDocKey || !docs.some((item) => item.key === ui.selectedDocKey)) ui.selectedDocKey = docs[0]?.key || "";
-  const selected = docs.find((item) => item.key === ui.selectedDocKey) || docs[0];
+  const vehicles = filteredPregateVehicles();
+  if (ui.expandedVehicleId && !vehicles.some((vehicle) => vehicle.id === ui.expandedVehicleId)) ui.expandedVehicleId = "";
+  const selected = allDocuments().find((item) => item.key === ui.selectedDocKey);
   const carriers = [...new Set(store.vehicles.map((vehicle) => vehicle.company))];
-  const types = [...new Set(allDocuments().map((item) => item.doc.type))].sort((a, b) => a.localeCompare(b, "tr"));
-  return `<section class="page"><div class="pregate-titlebar">Evrak Kontrol</div><div class="pregate-tabs"><button class="pregate-tab active">Evrak Listesi</button><button class="pregate-tab">Evrak Detay</button></div><div class="pregate-grid"><div><div class="filter-panel"><div class="filter-grid"><div class="field"><label>Nakliyeci</label><select id="filterCarrier"><option value="all">Tümü</option>${carriers.map((carrier) => `<option ${ui.docFilter.carrier === carrier ? "selected" : ""}>${esc(carrier)}</option>`).join("")}</select></div><div class="field"><label>Durum</label><select id="filterStatus"><option value="all">Tümü</option><option value="pending" ${ui.docFilter.status === "pending" ? "selected" : ""}>Onay Bekliyor</option><option value="approved" ${ui.docFilter.status === "approved" ? "selected" : ""}>Onaylandı</option><option value="rejected" ${ui.docFilter.status === "rejected" ? "selected" : ""}>Reddedildi</option><option value="returned" ${ui.docFilter.status === "returned" ? "selected" : ""}>Geri Gönderildi</option></select></div><div class="field"><label>Evrak Türü</label><select id="filterDocType"><option value="all">Tümü</option>${types.map((type) => `<option ${ui.docFilter.type === type ? "selected" : ""}>${esc(type)}</option>`).join("")}</select></div><div class="row"><button class="btn btn-primary" data-action="apply-doc-filter">Filtrele</button><button class="btn btn-light" data-action="clear-doc-filter">Temizle</button></div></div></div><div class="table-wrap"><table class="table"><thead><tr><th>Tarih</th><th>Nakliyeci</th><th>Plaka / Kayıt</th><th>Evrak Türü</th><th>Evrak Adı</th><th>Durum</th><th>İşlem</th></tr></thead><tbody>${docs.length ? docs.map((item) => `<tr class="clickable ${item.key === ui.selectedDocKey ? "selected-row" : ""}" data-action="select-doc" data-key="${item.key}"><td>${fmt(item.doc.submittedAt)}</td><td>${esc(item.vehicle.company)}</td><td>${esc(item.vehicle.plate)}</td><td>${esc(item.doc.type)}</td><td>${esc(item.doc.fileName)}</td><td>${statusPill(item.doc.status)}</td><td><button class="btn btn-primary btn-sm" data-action="select-doc" data-key="${item.key}">Görüntüle</button></td></tr>`).join("") : `<tr><td colspan="7"><div class="empty">Filtreye uygun evrak bulunamadı.</div></td></tr>`}</tbody></table></div></div><aside>${selected ? renderDocumentDetail(selected) : `<div class="empty">İncelenecek evrak seçiniz.</div>`}</aside></div></section>`;
+  const types = [...new Set(store.vehicles.flatMap((vehicle) => vehicleReviewDocuments(vehicle).map((item) => item.doc.type)))].sort((a, b) => a.localeCompare(b, "tr"));
+  return `<section class="page"><div class="pregate-titlebar">Evrak Kontrol</div><div class="pregate-tabs"><button class="pregate-tab active">Plaka Bazlı Evrak Listesi</button><button class="pregate-tab">Evrak Detay</button></div><div class="pregate-grid"><div><div class="filter-panel"><div class="filter-grid"><div class="field"><label>Nakliyeci</label><select id="filterCarrier"><option value="all">Tümü</option>${carriers.map((carrier) => `<option ${ui.docFilter.carrier === carrier ? "selected" : ""}>${esc(carrier)}</option>`).join("")}</select></div><div class="field"><label>Durum</label><select id="filterStatus"><option value="all">Tümü</option><option value="missing" ${ui.docFilter.status === "missing" ? "selected" : ""}>Eksik / Süresi Geçmiş</option><option value="pending" ${ui.docFilter.status === "pending" ? "selected" : ""}>Onay Bekliyor</option><option value="approved" ${ui.docFilter.status === "approved" ? "selected" : ""}>Onaylandı</option><option value="rejected" ${ui.docFilter.status === "rejected" ? "selected" : ""}>Reddedildi</option><option value="returned" ${ui.docFilter.status === "returned" ? "selected" : ""}>Geri Gönderildi</option></select></div><div class="field"><label>Evrak Türü</label><select id="filterDocType"><option value="all">Tümü</option>${types.map((type) => `<option ${ui.docFilter.type === type ? "selected" : ""}>${esc(type)}</option>`).join("")}</select></div><div class="row"><button class="btn btn-primary" data-action="apply-doc-filter">Filtrele</button><button class="btn btn-light" data-action="clear-doc-filter">Temizle</button></div></div></div><div class="plate-list-note">Her plaka yalnızca bir kez gösterilir. <b>Evrakları Aç</b> düğmesiyle o araca ait evraklar plakanın hemen altında açılır.</div><div class="table-wrap plate-table-wrap"><table class="table plate-group-table"><thead><tr><th>Plaka / Kayıt</th><th>Nakliyeci</th><th>Tip</th><th>Gönderim</th><th>Yüklü Evrak</th><th>Eksik</th><th>Bekleyen / Red</th><th>Genel Durum</th><th>İşlem</th></tr></thead><tbody>${vehicles.length ? vehicles.map((vehicle) => {
+    const summary = vehiclePregateSummary(vehicle);
+    const expanded = ui.expandedVehicleId === vehicle.id;
+    const overall = summary.status === "missing" ? `<span class="pill missing">Eksik Evrak</span>` : statusPill(summary.status);
+    return `<tr class="plate-group-row ${expanded ? "open" : ""} ${summary.rejected ? "row-red" : ""}"><td class="plate-group-name ${summary.rejected ? "plate-red" : ""}"><button class="plate-name-button" data-action="toggle-vehicle-docs" data-id="${vehicle.id}" aria-expanded="${expanded}">${esc(vehicle.plate)}</button></td><td>${esc(vehicle.company)}</td><td>${esc(VEHICLE_TYPES[vehicle.type].label)}</td><td>${fmt(vehicle.submittedAt)}</td><td><span class="count-chip neutral">${summary.submitted}</span></td><td><span class="count-chip ${summary.missing ? "danger" : "success"}">${summary.missing}</span></td><td><span class="count-chip ${summary.pending ? "warning" : "neutral"}">${summary.pending}</span> / <span class="count-chip ${summary.rejected ? "danger" : "neutral"}">${summary.rejected}</span></td><td>${overall}</td><td><button class="btn ${expanded ? "btn-dark" : "btn-primary"} btn-sm plate-toggle" data-action="toggle-vehicle-docs" data-id="${vehicle.id}" aria-expanded="${expanded}">${expanded ? "Evrakları Kapat" : "Evrakları Aç"}</button></td></tr>${expanded ? `<tr class="vehicle-documents-row"><td colspan="9">${renderExpandedVehicleDocuments(vehicle)}</td></tr>` : ""}`;
+  }).join("") : `<tr><td colspan="9"><div class="empty">Filtreye uygun plaka / kayıt bulunamadı.</div></td></tr>`}</tbody></table></div></div><aside>${selected ? renderDocumentDetail(selected) : `<div class="empty">Önce bir plakanın <b>Evrakları Aç</b> düğmesine, ardından incelemek istediğiniz evraka tıklayınız.</div>`}</aside></div></section>`;
 }
 
 function renderDocumentDetail(item) {
@@ -688,6 +757,7 @@ function applyDocumentFilter(clear = false) {
   if (clear) ui.docFilter = { carrier: "all", status: "all", type: "all" };
   else ui.docFilter = { carrier: document.getElementById("filterCarrier").value, status: document.getElementById("filterStatus").value, type: document.getElementById("filterDocType").value };
   ui.selectedDocKey = "";
+  ui.expandedVehicleId = "";
   render();
 }
 
@@ -737,6 +807,14 @@ app.addEventListener("click", (event) => {
   if (action === "create-request") createRequest();
   if (action === "download-doc-report") downloadDocumentReport();
   if (action === "download-op-report") downloadOperationReport();
+  if (action === "toggle-vehicle-docs") {
+    const vehicleId = target.dataset.id;
+    const closing = ui.expandedVehicleId === vehicleId;
+    ui.expandedVehicleId = closing ? "" : vehicleId;
+    if (closing) ui.selectedDocKey = "";
+    else ui.selectedDocKey = allDocuments().find((item) => item.vehicle.id === vehicleId)?.key || "";
+    render();
+  }
   if (action === "select-doc") { ui.selectedDocKey = target.dataset.key; render(); }
   if (action === "review-doc") reviewDocument(target.dataset.status);
   if (action === "apply-doc-filter") applyDocumentFilter(false);
