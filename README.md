@@ -10,6 +10,8 @@ prototipi. Tüpraş portalından bağımsız bir depo ve ayrı bir uygulamadır.
 - Nakliyeci ana sayfası ve son 10 kayıt özeti
 - Resmî Poliport görselleri, terminal kuralları, KKD, dokümanlar ve iletişim bilgilerini içeren Nakliyeci Bilgilendirme ekranı
 - Poliport Ürün & Taşıma Yönetimi rehberinin portal içindeki bütünleşik görünümü
+- Seymen Nakliyeci Portalı makro örneğiyle uyumlu lacivert sol menü, başlık şeritleri ve araç kayıt düzeni
+- Evrak dosyası ve son geçerlilik tarihine göre Geçerli / Yaklaşıyor / Geçti / Eksik renk kontrolü
 - Çekici, dorse/tanker, ISO tank, 40 ayak konteyner, kamyon ve sürücü kaydı
 - Dosya ve son geçerlilik tarihi bulunan evrak alanları
 - Pregate onay, red ve geri gönderme akışı

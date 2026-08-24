@@ -166,6 +166,22 @@ function statusPill(status) {
   return `<span class="pill ${STATUS_CLASS[status] || "info"}">${esc(STATUS_LABEL[status] || status)}</span>`;
 }
 
+function documentValidity(doc) {
+  if (!doc?.fileName || !doc?.expiry) return "missing";
+  const expires = new Date(`${doc.expiry}T23:59:59`);
+  if (Number.isNaN(expires.getTime())) return "missing";
+  const days = Math.ceil((expires.getTime() - Date.now()) / 86400000);
+  if (days < 0) return "expired";
+  if (days <= 30) return "approaching";
+  return "valid";
+}
+
+function validityBadge(doc) {
+  const state = documentValidity(doc);
+  const label = { valid: "GEÇERLİ", approaching: "YAKLAŞIYOR", expired: "GEÇTİ", missing: "EKSİK" }[state];
+  return `<span class="validity-badge ${state}">${label}</span>`;
+}
+
 function showToast(message) {
   toast.textContent = message;
   toast.classList.add("show");
@@ -214,7 +230,7 @@ function carrierNav() {
 
 function renderCarrierShell() {
   const stats = carrierStats();
-  return `<div class="shell carrier-shell"><aside class="side"><div class="side-brand"><img src="./poliport-logo.png" alt="Poliport"></div><div class="nav-title">NAKLİYECİ PORTALI</div>${carrierNav()}<div class="nav-title">HESAP</div><button class="nav-button" data-action="logout"><span class="nav-ico">↗</span>Güvenli Çıkış</button><div class="side-summary"><h3>Hızlı Durum</h3><div class="summary-line"><span>Havuzdaki kayıt</span><b class="green">${stats.approvedVehicles}</b></div><div class="summary-line"><span>Onay bekleyen evrak</span><b class="orange">${stats.pendingDocs}</b></div><div class="summary-line"><span>Reddedilen evrak</span><b class="red">${stats.rejectedDocs}</b></div></div></aside><main class="main"><header class="top"><div class="top-left"><span class="top-title">ABC Nakliyat · Poliport GullsEye</span><span class="pilot">PİLOT</span></div><div class="top-right"><button class="btn btn-light btn-sm" data-action="back-gateway">Rol Seçimi</button><div class="top-user"><div class="avatar">AY</div><span><b style="font-size:11px">Ayşe Yılmaz</b><small style="display:block;color:var(--muted)">Nakliyeci Yetkilisi</small></span></div></div></header>${renderCarrierPage()}</main></div>`;
+  return `<div class="shell carrier-shell"><aside class="side"><div class="side-brand portal-brand"><strong>GULLSEYE</strong><span>Poliport Nakliyeci Portalı</span></div><div class="nav-title">NAKLİYECİ PORTALI</div>${carrierNav()}<div class="nav-title">HESAP</div><button class="nav-button" data-action="logout"><span class="nav-ico">↗</span>Güvenli Çıkış</button><div class="side-summary"><h3>Hızlı Durum</h3><div class="summary-line"><span>Havuzdaki kayıt</span><b class="green">${stats.approvedVehicles}</b></div><div class="summary-line"><span>Onay bekleyen evrak</span><b class="orange">${stats.pendingDocs}</b></div><div class="summary-line"><span>Reddedilen evrak</span><b class="red">${stats.rejectedDocs}</b></div></div></aside><main class="main"><header class="top"><div class="top-left"><span class="top-title">ABC Nakliyat · Poliport GullsEye</span><span class="pilot">PİLOT</span></div><div class="top-right"><button class="btn btn-light btn-sm" data-action="back-gateway">Rol Seçimi</button><div class="top-user"><div class="avatar">AY</div><span><b style="font-size:11px">Ayşe Yılmaz</b><small style="display:block;color:var(--muted)">Nakliyeci Yetkilisi</small></span></div></div></header>${renderCarrierPage()}</main></div>`;
 }
 
 function renderCarrierPage() {
@@ -247,7 +263,8 @@ function renderVehiclePage() {
   const type = existing?.type || ui.vehicleType;
   const config = VEHICLE_TYPES[type];
   const docs = existing?.documents || config.docs.map((name) => ({ type: name, fileName: "", expiry: "", status: "pending", note: "" }));
-  return `<section class="page"><div class="section-head"><div><h2>${existing ? "Kayıt ve evrak güncelleme" : "Araç / sürücü kaydı"}</h2><p>Her kayıt tipi için belge görseli/PDF’i ve son geçerlilik tarihi girilir.</p></div>${existing ? `<button class="btn btn-light" data-action="cancel-edit">Yeni kayda dön</button>` : ""}</div><div class="vehicle-tabs">${Object.entries(VEHICLE_TYPES).map(([key, item]) => `<button class="vehicle-tab ${type === key ? "active" : ""}" data-action="vehicle-tab" data-type="${key}"><b>${esc(item.label)}</b><small>${item.docs.length} evrak alanı</small></button>`).join("")}</div><div class="vehicle-layout"><aside class="vehicle-visual"><img src="${config.image}" alt="${esc(config.label)}"><div class="visual-caption"><h3>${esc(config.label)}</h3><p class="subtle">${esc(config.note)}</p>${existing ? `<div style="margin-top:10px">${statusPill(vehicleStatus(existing))}</div>` : ""}</div></aside><div><div class="card"><form id="vehicleForm"><div class="vehicle-extra"><div class="field"><label>${esc(config.plateLabel)}</label><input id="vehiclePlate" value="${esc(existing?.plate || "")}" placeholder="${type === "driver" ? "Ad Soyad" : "34 ABC 123"}"></div><div class="field"><label>Nakliyeci Firma</label><input id="vehicleCompany" value="${esc(existing?.company || "ABC Nakliyat")}"></div><div class="field"><label>Kapasite</label><input id="vehicleCapacity" value="${esc(existing?.capacity || "")}" placeholder="32.000 L / 26 ton"></div><div class="field"><label>Tank Kodları</label><input id="vehicleTankCodes" value="${esc((existing?.tankCodes || []).join(", "))}" placeholder="L4BH, LGBF, T14"></div></div><div class="notice warn">Tank kodu ve belge kapsamı, güncel teknik kayıtlarla Pregate onayında doğrulanır. ISO tanklarda hidrostatik test/basınç raporu; tehlikeli ürün tankerlerinde T9 ve ADR belgeleri zorunlu kontrol alanıdır.</div><div class="card-title" style="margin-top:16px">Evraklar</div><div class="doc-grid">${docs.map((doc, index) => `<article class="doc-upload ${doc.status || "pending"}" data-doc-index="${index}"><h4><span>${esc(doc.type)}</span>${existing ? statusPill(doc.status) : ""}</h4><div class="doc-fields"><input type="file" accept=".pdf,image/*" aria-label="${esc(doc.type)} dosyası"><input type="date" class="doc-expiry" value="${esc(doc.expiry || "")}" aria-label="${esc(doc.type)} son geçerlilik tarihi"></div><div class="file-name">${esc(doc.fileName || "Henüz dosya seçilmedi")}</div>${doc.status === "rejected" && doc.note ? `<div class="notice danger" style="margin-top:8px">${esc(doc.note)}</div>` : ""}</article>`).join("")}</div><div class="form-actions"><button type="button" class="btn btn-light" data-action="save-draft">Taslağı Kaydet</button><button type="button" class="btn btn-primary" data-action="submit-vehicle">Kaydet ve Pregate Evrak Onayına Gönder</button></div></form></div></div></div></section>`;
+  const pageTitle = `${config.label.toLocaleUpperCase("tr-TR")} KAYIT`;
+  return `<section class="page macro-page"><div class="macro-titlebar">${esc(pageTitle)}</div><div class="vehicle-tabs">${Object.entries(VEHICLE_TYPES).map(([key, item]) => `<button class="vehicle-tab ${type === key ? "active" : ""}" data-action="vehicle-tab" data-type="${key}"><b>${esc(item.label)}</b><small>${item.docs.length} evrak alanı</small></button>`).join("")}</div><form id="vehicleForm" class="macro-form"><div class="macro-form-head"><section><h2>ARAÇ / KAYIT BİLGİLERİ</h2><div class="macro-fields"><div class="field"><label>${esc(config.plateLabel)}</label><input id="vehiclePlate" value="${esc(existing?.plate || "")}" placeholder="${type === "driver" ? "Ad Soyad" : "34 ABC 123"}"></div><div class="field"><label>Model / Üretim Yılı</label><input id="vehicleModelYear" inputmode="numeric" value="${esc(existing?.modelYear || "")}" placeholder="2024"></div><div class="field"><label>Nakliyeci Firma</label><input id="vehicleCompany" value="${esc(existing?.company || "ABC Nakliyat")}"></div></div></section><section><h2>TEKNİK BİLGİ ALANI</h2><div class="macro-fields"><div class="field"><label>Tank Kodları</label><input id="vehicleTankCodes" value="${esc((existing?.tankCodes || []).join(", "))}" placeholder="L4BH, LGBF, T14"></div><div class="field"><label>Kapasite</label><input id="vehicleCapacity" value="${esc(existing?.capacity || "")}" placeholder="32.000 L / 26 ton"></div><div class="field"><label>Uygunluk</label><div class="technical-check">${existing ? statusPill(vehicleStatus(existing)) : `<span class="pill pending">KONTROL BEKLİYOR</span>`}</div></div></div></section></div><div class="macro-doc-title"><div><h2>EVRAK YÜKLEME VE GEÇERLİLİK TAKİBİ</h2><p>Dosya seçimi ve son geçerlilik tarihi makrodaki renk mantığıyla kontrol edilir.</p></div><div class="validity-legend"><span class="validity-badge valid">GEÇERLİ</span><span class="validity-badge approaching">YAKLAŞIYOR</span><span class="validity-badge expired">GEÇTİ</span><span class="validity-badge missing">EKSİK</span></div></div><div class="macro-doc-table"><div class="macro-doc-header"><span>Evrak</span><span>Yükle</span><span>Dosya Adı</span><span>Son Geçerlilik</span><span>Durum</span></div>${docs.map((doc, index) => `<article class="doc-upload macro-doc-row ${doc.status || "pending"}" data-doc-index="${index}"><strong class="doc-name">${esc(doc.type)}</strong><label class="file-button">DOSYA YÜKLE<input type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" aria-label="${esc(doc.type)} dosyası"></label><div class="file-name">${esc(doc.fileName || "Dosya seçilmedi")}</div><input type="date" class="doc-expiry" value="${esc(doc.expiry || "")}" aria-label="${esc(doc.type)} son geçerlilik tarihi"><div class="doc-status-stack">${validityBadge(doc)}${statusPill(doc.status)}</div>${doc.status === "rejected" && doc.note ? `<div class="macro-row-note">${esc(doc.note)}</div>` : ""}</article>`).join("")}</div><div class="macro-help">Tank kodu ve belge kapsamı Pregate tarafından doğrulanır. ISO tanklarda hidrostatik test/basınç raporu; tehlikeli ürün tankerlerinde T9 ve ADR belgeleri zorunlu kontrol alanıdır.</div><div class="form-actions macro-actions">${existing ? `<button type="button" class="btn btn-light" data-action="cancel-edit">Yeni Kayda Dön</button>` : ""}<button type="button" class="btn btn-light" data-action="save-draft">Taslağı Kaydet</button><button type="button" class="btn btn-primary macro-save" data-action="submit-vehicle">KAYDET VE PREGATE ONAYINA GÖNDER</button></div></form></section>`;
 }
 
 function renderPoolPage() {
@@ -362,11 +379,22 @@ function beginVehicle(type = "tractor", editId = null) {
   render();
 }
 
+function refreshValidityRow(card, index) {
+  const expiry = card.querySelector(".doc-expiry")?.value || "";
+  const fileName = ui.draftFiles[index] || (card.querySelector(".file-name")?.textContent.includes("Dosya seçilmedi") ? "" : card.querySelector(".file-name")?.textContent || "");
+  const badge = card.querySelector(".validity-badge");
+  if (!badge) return;
+  const state = documentValidity({ fileName, expiry });
+  badge.className = `validity-badge ${state}`;
+  badge.textContent = { valid: "GEÇERLİ", approaching: "YAKLAŞIYOR", expired: "GEÇTİ", missing: "EKSİK" }[state];
+}
+
 function submitVehicle() {
   const type = currentVehicleDraft()?.type || ui.vehicleType;
   const config = VEHICLE_TYPES[type];
   const existing = currentVehicleDraft();
   const plate = document.getElementById("vehiclePlate").value.trim().toLocaleUpperCase("tr-TR");
+  const modelYear = document.getElementById("vehicleModelYear").value.trim();
   const company = document.getElementById("vehicleCompany").value.trim();
   const capacity = document.getElementById("vehicleCapacity").value.trim();
   const tankCodes = document.getElementById("vehicleTankCodes").value.split(",").map((code) => code.trim().toUpperCase()).filter(Boolean);
@@ -390,10 +418,10 @@ function submitVehicle() {
   const missing = documents.filter((doc) => !doc.fileName || !doc.expiry);
   if (missing.length) return showToast(`${missing.length} evrakta dosya veya son geçerlilik tarihi eksik.`);
   if (existing) {
-    Object.assign(existing, { plate, company, capacity, tankCodes, submittedAt: nowIso(), documents });
+    Object.assign(existing, { plate, modelYear, company, capacity, tankCodes, submittedAt: nowIso(), documents });
     showToast("Kayıt güncellendi ve değişen evraklar Pregate onayına gönderildi.");
   } else {
-    store.vehicles.push({ id: `v${Date.now()}`, type, plate, company, capacity, tankCodes, submittedAt: nowIso(), documents });
+    store.vehicles.push({ id: `v${Date.now()}`, type, plate, modelYear, company, capacity, tankCodes, submittedAt: nowIso(), documents });
     showToast("Kayıt oluşturuldu ve Pregate evrak onayına gönderildi.");
   }
   saveStore();
@@ -405,7 +433,7 @@ function submitVehicle() {
 function showVehicleDetail(id) {
   const vehicle = store.vehicles.find((item) => item.id === id);
   if (!vehicle) return;
-  openModal(`<h2>${esc(vehicle.plate)} · ${esc(VEHICLE_TYPES[vehicle.type].label)}</h2><p class="subtle">${esc(vehicle.company)} · Onaya gönderim: ${fmt(vehicle.submittedAt)}</p><div class="table-wrap"><table class="table"><thead><tr><th>Evrak</th><th>Dosya</th><th>Son Geçerlilik</th><th>Durum</th></tr></thead><tbody>${vehicle.documents.map((doc) => `<tr><td>${esc(doc.type)}</td><td>${esc(doc.fileName)}</td><td>${esc(doc.expiry)}</td><td>${statusPill(doc.status)}</td></tr>`).join("")}</tbody></table></div><div class="modal-footer"><button class="btn btn-light" data-action="close-modal">Kapat</button><button class="btn btn-primary" data-action="edit-vehicle" data-id="${vehicle.id}">Evrakları Güncelle</button></div>`);
+  openModal(`<h2>${esc(vehicle.plate)} · ${esc(VEHICLE_TYPES[vehicle.type].label)}</h2><p class="subtle">${esc(vehicle.company)}${vehicle.modelYear ? ` · ${esc(vehicle.modelYear)}` : ""} · Onaya gönderim: ${fmt(vehicle.submittedAt)}</p><div class="table-wrap"><table class="table"><thead><tr><th>Evrak</th><th>Dosya</th><th>Son Geçerlilik</th><th>Geçerlilik</th><th>Pregate</th></tr></thead><tbody>${vehicle.documents.map((doc) => `<tr><td>${esc(doc.type)}</td><td>${esc(doc.fileName)}</td><td>${esc(doc.expiry)}</td><td>${validityBadge(doc)}</td><td>${statusPill(doc.status)}</td></tr>`).join("")}</tbody></table></div><div class="modal-footer"><button class="btn btn-light" data-action="close-modal">Kapat</button><button class="btn btn-primary" data-action="edit-vehicle" data-id="${vehicle.id}">Evrakları Güncelle</button></div>`);
 }
 
 function syncRequestDraft() {
@@ -472,8 +500,9 @@ function downloadCsv(filename, headers, rows) {
 }
 
 function downloadDocumentReport() {
-  const rows = store.vehicles.flatMap((vehicle) => vehicle.documents.map((doc) => [vehicle.plate, VEHICLE_TYPES[vehicle.type].label, vehicle.company, doc.type, doc.fileName, doc.expiry, fmt(doc.submittedAt), fmt(doc.reviewedAt), STATUS_LABEL[doc.status], doc.note]));
-  downloadCsv("poliport_arac_evrak_onay_raporu.csv", ["Plaka/Kayıt", "Araç Tipi", "Nakliyeci", "Evrak", "Dosya", "Son Geçerlilik", "Yükleme Tarih/Saat", "Onay İşlem Tarih/Saat", "Durum", "Açıklama"], rows);
+  const validityLabels = { valid: "Geçerli", approaching: "Yaklaşıyor", expired: "Geçti", missing: "Eksik" };
+  const rows = store.vehicles.flatMap((vehicle) => vehicle.documents.map((doc) => [vehicle.plate, VEHICLE_TYPES[vehicle.type].label, vehicle.company, doc.type, doc.fileName, doc.expiry, validityLabels[documentValidity(doc)], fmt(doc.submittedAt), fmt(doc.reviewedAt), STATUS_LABEL[doc.status], doc.note]));
+  downloadCsv("poliport_arac_evrak_onay_raporu.csv", ["Plaka/Kayıt", "Araç Tipi", "Nakliyeci", "Evrak", "Dosya", "Son Geçerlilik", "Belge Geçerlilik", "Yükleme Tarih/Saat", "Onay İşlem Tarih/Saat", "Pregate Durumu", "Açıklama"], rows);
 }
 
 function downloadOperationReport() {
@@ -516,7 +545,12 @@ app.addEventListener("change", (event) => {
     if (file) {
       ui.draftFiles[index] = file.name;
       card.querySelector(".file-name").textContent = `${file.name} · ${Math.max(1, Math.round(file.size / 1024))} KB`;
+      refreshValidityRow(card, index);
     }
+  }
+  if (event.target.matches(".doc-expiry")) {
+    const card = event.target.closest(".doc-upload");
+    refreshValidityRow(card, Number(card.dataset.docIndex));
   }
   if (["requestType", "product1", "secondProduct", "product2"].includes(event.target.id)) {
     syncRequestDraft();
