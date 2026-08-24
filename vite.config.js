@@ -6,5 +6,5 @@ export default defineConfig(async () => {
   process.env.WRANGLER_LOG_PATH ??= ".wrangler/logs";
   process.env.MINIFLARE_REGISTRY_PATH ??= ".wrangler/registry";
   const { cloudflare } = await import("@cloudflare/vite-plugin");
-  return { plugins: [sites(), cloudflare()] };
+  return { base: "./", plugins: [sites(), cloudflare()] };
 });

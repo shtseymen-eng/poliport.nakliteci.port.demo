@@ -3,6 +3,8 @@
 Poliport kara yolu sevkiyatları için hazırlanan rol bazlı GullsEye portal
 prototipi. Tüpraş portalından bağımsız bir depo ve ayrı bir uygulamadır.
 
+Canlı GitHub Pages bağlantısı: https://shtseymen-eng.github.io/poliport.nakliteci.port.demo/
+
 ## Hazırlanan ekranlar
 
 - Poliport Lojistik sayfasıyla aynı ritimde animasyonlu giriş ve Nakliyeci / Pregate rol seçimi
