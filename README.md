@@ -5,9 +5,11 @@ prototipi. Tüpraş portalından bağımsız bir depo ve ayrı bir uygulamadır.
 
 ## Hazırlanan ekranlar
 
-- Animasyonlu giriş ve Nakliyeci / Pregate rol seçimi
+- Poliport Lojistik sayfasıyla aynı ritimde animasyonlu giriş ve Nakliyeci / Pregate rol seçimi
 - GullsEye görünümlü kullanıcı girişi
 - Nakliyeci ana sayfası ve son 10 kayıt özeti
+- Resmî Poliport görselleri, terminal kuralları, KKD, dokümanlar ve iletişim bilgilerini içeren Nakliyeci Bilgilendirme ekranı
+- Poliport Ürün & Taşıma Yönetimi rehberinin portal içindeki bütünleşik görünümü
 - Çekici, dorse/tanker, ISO tank, 40 ayak konteyner, kamyon ve sürücü kaydı
 - Dosya ve son geçerlilik tarihi bulunan evrak alanları
 - Pregate onay, red ve geri gönderme akışı
