@@ -11,6 +11,7 @@ Canlı GitHub Pages bağlantısı: https://shtseymen-eng.github.io/poliport.nakl
 - GullsEye görünümlü kullanıcı girişi
 - Nakliyeci ana sayfası ve son 10 kayıt özeti
 - Resmî Poliport görselleri, terminal kuralları, KKD, dokümanlar ve iletişim bilgilerini içeren Nakliyeci Bilgilendirme ekranı
+- Yalnızca portal içi bilgilendirme görünümünde yer alan Nakliyeci Portalına geri dönüş düğmesi
 - Poliport Ürün & Taşıma Yönetimi rehberinin portal içindeki bütünleşik görünümü
 - Seymen Nakliyeci Portalı makro örneğiyle uyumlu lacivert sol menü, başlık şeritleri ve araç kayıt düzeni
 - Evrak dosyası ve son geçerlilik tarihine göre Geçerli / Yaklaşıyor / Geçti / Eksik renk kontrolü

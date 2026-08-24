@@ -280,7 +280,7 @@ function renderCarrierShell() {
 }
 
 function renderCarrierPage() {
-  if (ui.page === "info") return renderInfoPage();
+  if (ui.page === "info") return `<div class="portal-return-bar"><button class="btn portal-return-button" data-action="nav" data-page="home">← Nakliyeci Portalına Geri Dön</button><span>Bu geçiş yalnızca Nakliyeci Portalı içindeki bilgilendirme ekranında görünür.</span></div>${renderInfoPage()}`;
   if (ui.page === "vehicles") return renderVehiclePage();
   if (ui.page === "pool") return renderPoolPage();
   if (ui.page === "requests") return renderRequestPage();
